@@ -1,0 +1,7 @@
+.claude/
+# OS files
+.DS_Store
+Thumbs.db
+backend/apps-script/.clasp.json
+.gradle/
+positioning-core/build/

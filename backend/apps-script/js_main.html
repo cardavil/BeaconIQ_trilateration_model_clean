@@ -1,0 +1,117 @@
+<script>
+// ═══════════════════════════════════════════════════════════════
+// BeaconIQ Console — Client-side logic
+// ═══════════════════════════════════════════════════════════════
+
+window.addEventListener('DOMContentLoaded', function() {
+  loadSessions();
+  loadSheetLinks();
+});
+
+// ── HELPERS ─────────────────────────────────────────────────
+
+function escapeHtml(s) {
+  var d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+function setStatus(id, msg, tipo) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'status-line' + (tipo ? ' ' + tipo : '');
+}
+
+function formatDate(str) {
+  if (!str) return '--';
+  try {
+    var d = new Date(str);
+    if (isNaN(d.getTime())) return String(str).substring(0, 16);
+    var dd = String(d.getDate()).padStart(2, '0');
+    var mm = String(d.getMonth() + 1).padStart(2, '0');
+    var hh = String(d.getHours()).padStart(2, '0');
+    var mi = String(d.getMinutes()).padStart(2, '0');
+    return dd + '/' + mm + ' ' + hh + ':' + mi;
+  } catch(e) { return String(str).substring(0, 16); }
+}
+
+// ── SESSIONS ────────────────────────────────────────────────
+
+function loadSessions() {
+  var container = document.getElementById('sessions-container');
+  if (container) container.innerHTML = '<p class="loading-msg">Loading sessions...</p>';
+
+  google.script.run
+    .withSuccessHandler(renderSessions)
+    .withFailureHandler(function(e) {
+      if (container) container.innerHTML =
+        '<p class="loading-msg" style="color:var(--danger)">Error: ' + escapeHtml(e.message) + '</p>';
+    })
+    .api_getSessions();
+}
+
+function renderSessions(rows) {
+  var container = document.getElementById('sessions-container');
+  if (!container) return;
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    container.innerHTML =
+      '<div class="empty-state"><div class="empty-icon">&#x1F4E1;</div>' +
+      '<p>No sessions recorded yet.</p></div>';
+    return;
+  }
+
+  var html =
+    '<div class="table-wrapper"><table class="biq-table"><thead><tr>' +
+    '<th>Session</th><th>Date</th><th>Analyst</th><th>Room</th>' +
+    '<th>Duration</th><th>Beacons</th><th>Readings</th>' +
+    '</tr></thead><tbody>';
+
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    html +=
+      '<tr>' +
+      '<td class="mono">' + escapeHtml(r.session_id) + '</td>' +
+      '<td>' + escapeHtml(formatDate(r.timestamp_start)) + '</td>' +
+      '<td>' + escapeHtml(r.analyst) + '</td>' +
+      '<td>' + escapeHtml(r.room) + '</td>' +
+      '<td>' + escapeHtml(r.duration_sec) + 's</td>' +
+      '<td style="text-align:center">' + escapeHtml(r.beacons_detected) + '</td>' +
+      '<td style="text-align:center">' + escapeHtml(r.ibeacon_hits) + '</td>' +
+      '</tr>';
+  }
+
+  html += '</tbody></table></div>';
+  container.innerHTML = html;
+}
+
+// ── SHEET LINKS ────────────────────────────────────────────
+
+function loadSheetLinks() {
+  google.script.run
+    .withSuccessHandler(renderSheetLinks)
+    .withFailureHandler(function() {})
+    .api_getSheetLinks();
+}
+
+function renderSheetLinks(links) {
+  var container = document.getElementById('sheet-links');
+  if (!container || !links) return;
+
+  var items = [
+    { key: 'sessions', label: 'Sessions Sheet' },
+    { key: 'readings', label: 'Readings Sheet' },
+    { key: 'rawscans', label: 'Raw Scans Sheet' }
+  ];
+
+  var parts = [];
+  for (var i = 0; i < items.length; i++) {
+    var url = links[items[i].key];
+    if (url) {
+      parts.push('<a href="' + url + '" target="_blank">' + items[i].label + '</a>');
+    }
+  }
+  container.innerHTML = parts.join('<span class="sep">&middot;</span>');
+}
+</script>
